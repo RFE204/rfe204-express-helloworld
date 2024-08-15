@@ -13,17 +13,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 // Models
 model Project {
-    id          Int     @id @default(autoincrement())
-    name        String
-    description String?
-    status      String  @default("ongoing")
-    ownerId     Int
-    owner       User    @relation(fields: [ownerId], references: [id])
+  id          Int     @id @default(autoincrement())
+  name        String
+  description String?
+  status      String  @default("ongoing")
+  ownerId     Int
+  owner       User    @relation(fields: [ownerId], references: [id])
 }
-
 
 model Profile {
   id     Int     @id @default(autoincrement())
@@ -33,9 +31,10 @@ model Profile {
 }
 
 model User {
-  id      Int      @id @default(autoincrement())
-  email   String   @unique
-  name    String?
-  posts   Project[]
-  profile Profile?
+  id       Int       @id @default(autoincrement())
+  email    String    @unique
+  name     String    @default("example name")
+  password String?
+  posts    Project[]
+  profile  Profile?
 }
