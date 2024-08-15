@@ -1,6 +1,6 @@
 const express = require('express')
 const { PrismaClient } = require('@prisma/client');
-const { userSchema } = require('./schemas/users')
+const { userSchema, userPartialSchema } = require('./schemas/users')
 
 
 //  create 
@@ -54,7 +54,7 @@ app.post('/users', async function (req, res) {
             }
         });
 
-        const {password, ...rest} = newUser
+        const { password, ...rest } = newUser
 
         res.status(201).json(rest)
 
@@ -85,24 +85,46 @@ app.get('/users/:userID', async function (req, res) {
 });
 
 
-// app.put('/users/:userID', updateUser);
-// app.patch('/users/:userID', updateUser);
-// function updateUser(req, res) {
-//     const { userID } = req.params;
-//     const userIndex = db.users.findIndex(u => `${u.id}` === userID);
-//     if (userIndex !== -1) {
-//         // update user except id
-//         db.users[userIndex] = {
-//             ...db.users[userIndex],
-//             ...req.body,
-//             id: db.users[userIndex].id
-//         };
-//         fs.writeFileSync(DB_PATH, JSON.stringify(db));
-//         res.json(db.users[userIndex]);
-//     } else {
-//         res.status(404).json({ error: 'User not found' });
-//     }
-// }
+app.put('/users/:userID', updateUser);
+app.patch('/users/:userID', updateUser);
+async function updateUser(req, res) {
+    const { userID } = req.params;
+    const schemaValidator = req.method.toLowerCase() === "put" ? userSchema : userPartialSchema
+
+    const user = await prisma.user.findUnique({
+        where: {
+            id: parseInt(userID, 10)
+        }
+    });
+    if (user) {
+        const { error, value } = schemaValidator.validate(req.body)
+
+        if (error) {
+            return res.status(400).json({ error: error.details[0].message });
+        }
+
+
+        try {
+
+            const updatedUser = await prisma.user.update({
+                where: {
+                    id: parseInt(userID, 10)
+                },
+                data: value
+            });
+
+            const { password, ...safeUser } = updatedUser;
+            res.json(safeUser);
+        } catch (error) {
+            res.status(400).json({ error: String(error) });
+        }
+
+    } else {
+        res.status(404).json({ error: 'User not found' });
+    }
+}
+
+
 // app.delete('/users/:userID', function (req, res) {
 //     const { userID } = req.params;
 //     const userIndex = db.users.findIndex(u => `${u.id}` === userID);

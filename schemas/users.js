@@ -6,5 +6,12 @@ const userSchema = Joi.object({
     password: Joi.string().min(6).required(),
 });
 
+const userPartialSchema = Joi.object({
+    email: Joi.string().email().optional(),
+    name: Joi.string().optional(),
+    password: Joi.string().min(6).optional(),
+});
+
 
 exports.userSchema = userSchema
+exports.userPartialSchema = userPartialSchema
