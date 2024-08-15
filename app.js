@@ -1,10 +1,12 @@
 const express = require('express')
-const fs = require('fs')
-const { v4: uuidv4 } = require('uuid');
+const { PrismaClient } = require('@prisma/client');
+const { userSchema } = require('./schemas/users')
+
 
 //  create 
 const PORT = process.env.PORT || 3000
 const app = express()
+const prisma = new PrismaClient()
 
 
 // middleewares
@@ -13,23 +15,74 @@ app.use(
 )
 
 // routes
-app.get('/users', function (req, res) {
-    console.log("req", req)
-    res.json(db.users)
-})
-// app.post('/users', function (req, res) {
-//     const new_user = req.body
-//     new_user.id = uuidv4(); // generate a new id
-//     db.users.push(new_user)
-//     fs.writeFileSync(DB_PATH, JSON.stringify(db))
-//     res.status(201).json(new_user)
-// })
-// app.get('/users/:userID', function (req, res) {
+app.get('/users', async (req, res) => {
+    const { page, limit } = req.query;
+    const pageNumber = parseInt(page) || 1;
+    const pageSize = parseInt(limit) || 10;
 
-//     const { userID } = req.params
-//     const user = db.users.find(u => `${u.id}` === userID)
-//     res.json(user)
-// })
+    const offset = (pageNumber - 1) * pageSize;
+    const [users, total] = await Promise.all([
+        prisma.user.findMany({
+            skip: offset,
+            take: pageSize,
+        }),
+        prisma.user.count(),
+    ]);
+
+    res.json({
+        total,
+        page: pageNumber,
+        limit: pageSize,
+        data: users,
+    });
+});
+
+app.post('/users', async function (req, res) {
+    const validation = userSchema.validate(req.body)
+    const { error, value } = validation
+
+    console.log("validation", validation)
+
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    try {
+        const newUser = await prisma.user.create({
+            data: {
+                ...value
+            }
+        });
+
+        const {password, ...rest} = newUser
+
+        res.status(201).json(rest)
+
+    } catch (error) {
+        res.status(500).json({ error: String(error) })
+    }
+})
+app.get('/users/:userID', async function (req, res) {
+    const { userID } = req.params;
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: {
+                id: parseInt(userID, 10)
+            }
+        });
+
+        if (user) {
+            const { password, ...safeUser } = user;
+            res.json(safeUser);
+        } else {
+            res.status(404).json({ error: 'User not found' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
 
 
 // app.put('/users/:userID', updateUser);
