@@ -125,18 +125,32 @@ async function updateUser(req, res) {
 }
 
 
-// app.delete('/users/:userID', function (req, res) {
-//     const { userID } = req.params;
-//     const userIndex = db.users.findIndex(u => `${u.id}` === userID);
+app.delete('/users/:userID', async (req, res) => {
+    const { userID } = req.params;
 
-//     if (userIndex !== -1) {
-//         const deletedUser = db.users.splice(userIndex, 1);
-//         fs.writeFileSync(DB_PATH, JSON.stringify(db));
-//         res.json({ message: 'User deleted successfully', user: deletedUser });
-//     } else {
-//         res.status(404).json({ message: 'User not found' });
-//     }
-// });
+    try {
+        const user = await prisma.user.findUnique({
+            where: {
+                id: parseInt(userID, 10)
+            }
+        });
+
+        if (user) {
+            await prisma.user.delete({
+                where: {
+                    id: parseInt(userID, 10)
+                }
+            });
+            res.json({ message: 'User deleted successfully' });
+        } else {
+            res.status(404).json({ error: 'User not found' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 
 
 
