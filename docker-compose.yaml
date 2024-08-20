@@ -23,6 +23,8 @@ services:
       context: .
       dockerfile: Dockerfile.local
     container_name: api
+    env_file:
+      - .env
     # volumes:
     #   - .:/app
     ports:

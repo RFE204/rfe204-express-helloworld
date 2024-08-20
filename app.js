@@ -1,7 +1,39 @@
 const express = require('express')
 const { PrismaClient } = require('@prisma/client');
-const { userSchema, userPartialSchema } = require('./schemas/users')
+const passport = require("passport");
+const 
+JwtStrategy = require('passport-jwt').Strategy,
+ExtractJwt = require('passport-jwt').ExtractJwt;
 
+const jwt = require('jsonwebtoken');
+const { userSchema, userPartialSchema } = require('./schemas/users')
+const { validPassword, genPassword } = require('./helpers');
+
+
+const opts = {
+    jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+    secretOrKey: 'secret',
+    issuer: 'accounts.examplesoft.com',
+    audience: 'yoursite.net'
+}
+
+passport.use(new JwtStrategy(opts, function(jwt_payload, done) {
+    prisma.user.findUnique({
+        where: {
+            id: jwt_payload.sub
+        }
+    })
+    .then(user => {
+        if (user) {
+            return done(null, user);
+        } else {
+            return done(null, false);
+        }
+    })
+    .catch(err => {
+        return done(err, false);
+    });
+}));
 
 //  create 
 const PORT = process.env.PORT || 3000
@@ -13,9 +45,69 @@ const prisma = new PrismaClient()
 app.use(
     express.json()
 )
+app.use(passport.initialize());
+
 
 // routes
-app.get('/users', async (req, res) => {
+app.post('/register', async function (req, res) {
+    const { email, name, password } = req.body;
+    // encrypt password
+    const { salt, hash } = genPassword(password);
+
+
+    try {
+        const user = await prisma.user.create({
+            data: {
+                email,
+                name,
+                password: `${hash}.divider.${salt}`
+            }
+        });
+
+        const { password: _, ...safeUser } = user;
+
+        res.json(safeUser);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+app.post('/login', async function (req, res) {
+    const { email, password } = req.body;
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: {
+                email
+            }
+        });
+
+        if (user) {
+            const [hash, salt] = user.password.split('.divider.');
+            if (validPassword(password, hash, salt)) {
+                // generate token
+                const token = jwt.sign
+                (
+                    { sub: user.id, email: user.email },
+                    'secret',
+                    { expiresIn: '1h' }
+                );
+                res.json({ token, expiresIn: 3600 });
+                res.json({ message: 'Login successful' });
+            } else {
+                res.status(401).json({ error: 'Invalid email or password' });
+            }
+        } else {
+            res.status(401).json({ error: 'Invalid email or password' });
+        }
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+app.get('/users',  passport.authenticate(
+    'bearer', { session: false, }
+),async (req, res) => {
     const { page, limit } = req.query;
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10;
