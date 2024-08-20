@@ -19,7 +19,9 @@ services:
       retries: 5
 
   express:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.local
     container_name: api
     # volumes:
     #   - .:/app
