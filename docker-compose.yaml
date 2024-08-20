@@ -1,0 +1,29 @@
+
+
+
+services:
+
+  db:
+    image: postgres:12
+    container_name: postgres
+    ports:
+      - 5432:5432
+    env_file:
+      - .env
+    volumes:
+      - ./db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "sh -c 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}'"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  express:
+    build: .
+    container_name: api
+    # volumes:
+    #   - .:/app
+    ports:
+      - 3000:3000
+    depends_on:
+      - db
