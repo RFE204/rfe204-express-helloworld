@@ -29,9 +29,7 @@ describe('User API', () => {
         prisma.user.create.mockResolvedValue({
             id: 1,
             email: 'test@example.com',
-            name: 'Test User',
-            createdAt: new Date(),
-            updatedAt: new Date()
+            name: 'Test User'
         });
 
         const response = await request(app)
