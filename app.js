@@ -152,9 +152,9 @@ app.delete('/users/:userID', async (req, res) => {
 });
 
 
+module.exports = app; // Export the app for testing
 
-
-// run server
-app.listen(PORT, () => {
-    console.log(`express runs at port ${PORT}`)
-})
+// // run server
+// app.listen(PORT, () => {
+//     console.log(`express runs at port ${PORT}`)
+// })

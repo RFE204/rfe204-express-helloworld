@@ -1,0 +1,30 @@
+name: Express App Tests
+
+on:
+  push:
+    branches:
+      - main
+      - render-setup
+  pull_request:
+    branches:
+      - main
+      - render-setup
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 21.6.2
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm run test
