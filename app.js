@@ -41,7 +41,7 @@ app.post('/users', async function (req, res) {
     const validation = userSchema.validate(req.body)
     const { error, value } = validation
 
-    console.log("validation", validation)
+    // console.log("validation", validation)
 
     if (error) {
         return res.status(400).json({ error: error.details[0].message });
@@ -154,7 +154,4 @@ app.delete('/users/:userID', async (req, res) => {
 
 
 
-// run server
-app.listen(PORT, () => {
-    console.log(`express runs at port ${PORT}`)
-})
+module.exports = app
