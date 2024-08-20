@@ -2,6 +2,8 @@ FROM node:21.6.2
 
 ARG DATABASE_URL
 
+ENV DATABASE_URL=$DATABASE_URL
+
 WORKDIR /app
 
 COPY package.json .
@@ -13,7 +15,6 @@ COPY . /app/
 RUN npx prisma generate
 RUN npx prisma db push
 
-ENV DATABASE_URL=$DATABASE_URL
 
 EXPOSE 3000
 
