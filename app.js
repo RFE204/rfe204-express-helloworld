@@ -1,42 +1,18 @@
 const express = require('express')
 const { PrismaClient } = require('@prisma/client');
 const passport = require("passport");
-const 
-JwtStrategy = require('passport-jwt').Strategy,
-ExtractJwt = require('passport-jwt').ExtractJwt;
 
 const jwt = require('jsonwebtoken');
 const { userSchema, userPartialSchema } = require('./schemas/users')
 const { validPassword, genPassword } = require('./helpers');
 
+const auth = require('./auth/auth');
 
-const opts = {
-    jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-    secretOrKey: 'secret',
-    issuer: 'accounts.examplesoft.com',
-    audience: 'yoursite.net'
-}
 
-passport.use(new JwtStrategy(opts, function(jwt_payload, done) {
-    prisma.user.findUnique({
-        where: {
-            id: jwt_payload.sub
-        }
-    })
-    .then(user => {
-        if (user) {
-            return done(null, user);
-        } else {
-            return done(null, false);
-        }
-    })
-    .catch(err => {
-        return done(err, false);
-    });
-}));
+
+require('./auth/passport')(passport);
 
 //  create 
-const PORT = process.env.PORT || 3000
 const app = express()
 const prisma = new PrismaClient()
 
@@ -45,7 +21,7 @@ const prisma = new PrismaClient()
 app.use(
     express.json()
 )
-app.use(passport.initialize());
+
 
 
 // routes
@@ -105,9 +81,7 @@ app.post('/login', async function (req, res) {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-app.get('/users',  passport.authenticate(
-    'bearer', { session: false, }
-),async (req, res) => {
+app.get('/users',  auth, async (req, res) => {
     const { page, limit } = req.query;
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10;
