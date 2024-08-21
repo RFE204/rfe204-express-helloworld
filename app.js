@@ -1,6 +1,8 @@
 const express = require('express')
 const { PrismaClient } = require('@prisma/client');
+const crypto = require("crypto");
 const { userSchema, userPartialSchema } = require('./schemas/users')
+const jwt = require('jsonwebtoken');
 
 
 //  create 
@@ -8,17 +10,131 @@ const PORT = process.env.PORT || 3000
 const app = express()
 const prisma = new PrismaClient()
 
+const JWT_SECRET = 'secret'
 
 // middleewares
 app.use(
     express.json()
 )
 
+function generatePassword(password) {
+    const salt = crypto.randomBytes(32).toString("hex");
+    const hash = crypto
+        .pbkdf2Sync(password, salt, 10000, 64, "sha512")
+        .toString("hex");
+
+    return {
+        salt,
+        hash
+    }
+
+}
+
+function verifyPassword(password, hash, salt) {
+    var hashVerify = crypto
+        .pbkdf2Sync(password, salt, 10000, 64, "sha512")
+        .toString("hex");
+    return hash === hashVerify
+}
+
+
+async function requireToken(req, res, next) {
+
+
+    const token = req.get('Authorization').split(' ')[1]
+    
+    try {
+        const {sub} = jwt.verify(token, JWT_SECRET)
+        
+        
+        const user = await prisma.user.findUnique({
+            where: {
+                id: sub
+            }
+        });
+
+        if (user) {
+            req.user = user
+        }
+        
+    } catch (error) {
+
+        return res.status(400).json({
+            error: error.message
+        })
+        
+    }
+
+
+    next()
+    
+}
+
 // routes
-app.get('/users', async (req, res) => {
+app.post("/register", async (req, res) => {
+    const validation = userSchema.validate(req.body)
+    const { error, value } = validation
+
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    }
+
+    const { salt, hash } = generatePassword(value.password)
+
+    try {
+        const newUser = await prisma.user.create({
+            data: {
+                ...value,
+                password: `${hash}.divider.${salt}`
+            }
+        });
+
+        const { password, ...rest } = newUser
+
+        res.status(201).json(rest)
+
+    } catch (error) {
+        res.status(500).json({ error: String(error) })
+    }
+
+})
+app.post("/login", async (req, res) => {
+    const { email, password } = req.body
+
+    try {
+        const user = await prisma.user.findUnique({
+            where: {
+                email: email
+            }
+        });
+
+        if (user) {
+            const [hash, salt] = user.password.split('.divider.')
+            if (verifyPassword(password, hash, salt)) {
+                const token = jwt.sign(
+                    {sub: user.id, email: user.email},
+                    JWT_SECRET,
+                    { expiresIn: '1h'}
+                )
+
+                res.cookie('refresh_token', token)
+                res.json({token, expiresIn: 60 * 60})                
+            }
+        }
+
+
+    } catch (error) {
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+})
+
+
+app.get('/users', requireToken, async (req, res) => {
     const { page, limit } = req.query;
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10;
+
+    console.log("requesting user", req.user)
 
     const offset = (pageNumber - 1) * pageSize;
     const [users, total] = await Promise.all([
@@ -41,7 +157,7 @@ app.post('/users', async function (req, res) {
     const validation = userSchema.validate(req.body)
     const { error, value } = validation
 
-    // console.log("validation", validation)
+    
 
     if (error) {
         return res.status(400).json({ error: error.details[0].message });
