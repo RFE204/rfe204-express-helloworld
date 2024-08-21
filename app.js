@@ -4,13 +4,12 @@ const passport = require("passport");
 
 const jwt = require('jsonwebtoken');
 const { userSchema, userPartialSchema } = require('./schemas/users')
-const { validPassword, genPassword } = require('./helpers');
+const { validPassword, genPassword } = require('./auth/helpers');
+const {strategy} = require('./auth/passport')
+const requireAuth = require('./auth/auth');
 
-const auth = require('./auth/auth');
 
 
-
-require('./auth/passport')(passport);
 
 //  create 
 const app = express()
@@ -21,6 +20,7 @@ const prisma = new PrismaClient()
 app.use(
     express.json()
 )
+passport.use(strategy);
 
 
 
@@ -69,7 +69,6 @@ app.post('/login', async function (req, res) {
                     { expiresIn: '1h' }
                 );
                 res.json({ token, expiresIn: 3600 });
-                res.json({ message: 'Login successful' });
             } else {
                 res.status(401).json({ error: 'Invalid email or password' });
             }
@@ -81,7 +80,7 @@ app.post('/login', async function (req, res) {
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
-app.get('/users',  auth, async (req, res) => {
+app.get('/users',  requireAuth, async (req, res) => {
     const { page, limit } = req.query;
     const pageNumber = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10;
@@ -103,7 +102,7 @@ app.get('/users',  auth, async (req, res) => {
     });
 });
 
-app.post('/users', async function (req, res) {
+app.post('/users', requireAuth, async function (req, res) {
     const validation = userSchema.validate(req.body)
     const { error, value } = validation
 
@@ -128,7 +127,7 @@ app.post('/users', async function (req, res) {
         res.status(500).json({ error: String(error) })
     }
 })
-app.get('/users/:userID', async function (req, res) {
+app.get('/users/:userID', requireAuth, async function (req, res) {
     const { userID } = req.params;
 
     try {
@@ -151,8 +150,8 @@ app.get('/users/:userID', async function (req, res) {
 });
 
 
-app.put('/users/:userID', updateUser);
-app.patch('/users/:userID', updateUser);
+app.put('/users/:userID', requireAuth, updateUser);
+app.patch('/users/:userID', requireAuth, updateUser);
 async function updateUser(req, res) {
     const { userID } = req.params;
     const schemaValidator = req.method.toLowerCase() === "put" ? userSchema : userPartialSchema
@@ -191,7 +190,7 @@ async function updateUser(req, res) {
 }
 
 
-app.delete('/users/:userID', async (req, res) => {
+app.delete('/users/:userID', requireAuth, async (req, res) => {
     const { userID } = req.params;
 
     try {
